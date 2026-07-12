@@ -248,6 +248,12 @@ export async function saveDb(data: Database): Promise<void> {
   try {
     await initGoogleSheets();
 
+    // Clear AdminToken sheet first to prevent old tokens from reappearing
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${ADMIN_TOKEN_SHEET}!A:Z`,
+    });
+
     // Save admin token
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -259,6 +265,12 @@ export async function saveDb(data: Database): Promise<void> {
           ['adminToken', data.adminToken],
         ],
       },
+    });
+
+    // Clear Tokens sheet first to prevent old tokens from reappearing
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TOKENS_SHEET}!A:Z`,
     });
 
     // Save tokens (including header)
