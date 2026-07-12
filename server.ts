@@ -240,18 +240,43 @@ function sanitizeErrorMessage(err: any): string {
   const msg = err.message || String(err);
   const lowerMsg = msg.toLowerCase();
   
-  if (code === 21629 || 
+  // Log the original error for debugging
+  console.log('[Twilio Error] Code:', code, 'Message:', msg);
+
+  // Trial account: already have an active number (21610 = max incoming phone numbers reached)
+  if (code === 21610 || 
       lowerMsg.includes('trial accounts are allowed only one') ||
-      lowerMsg.includes('one twilio number')) {
+      lowerMsg.includes('one twilio number') ||
+      lowerMsg.includes('already have an active') ||
+      lowerMsg.includes('already have a number') ||
+      lowerMsg.includes('only one phone number')) {
     return 'You already have an active leased number. Please delete/release your existing active number first and try again.';
   }
 
+  // Account limit reached
   if (lowerMsg.includes('reached the maximum number of phone numbers') ||
       lowerMsg.includes('has reached the maximum') ||
-      lowerMsg.includes('upgrade your account to provision')) {
-    return 'your account ID token has limit please login a new token then try again number Lease';
+      lowerMsg.includes('upgrade your account to provision') ||
+      lowerMsg.includes('maximum number of incoming') ||
+      lowerMsg.includes('phone number limit')) {
+    return 'Your account ID token has reached its limit. Please login with a new token and try again.';
+  }
+
+  // Number already purchased/associated
+  if (lowerMsg.includes('already exists') ||
+      lowerMsg.includes('already associated') ||
+      lowerMsg.includes('duplicate')) {
+    return 'This phone number is already leased to another account or is unavailable. Please try a different number.';
+  }
+
+  // Invalid number or not available
+  if (lowerMsg.includes('not a valid') ||
+      lowerMsg.includes('not available') ||
+      lowerMsg.includes('was not found')) {
+    return 'The requested phone number is not available or invalid. Please search for a different number.';
   }
   
+  // Replace any remaining twilio mentions
   return msg.replace(/twilio/gi, 'Signal Registry').replace(/Twilio/g, 'Registry');
 }
 
