@@ -45,14 +45,26 @@ let cachedDb: Database | null = null;
 let lastSyncTime = 0;
 const CACHE_TTL_MS = 5000; // 5 seconds cache
 
+// Get Google credentials - supports both file and environment variable
+function getCredentials(): any {
+  // Method 1: Try to get credentials from GOOGLE_CREDENTIALS_JSON env var (for Render)
+  if (process.env.GOOGLE_CREDENTIALS_JSON) {
+    console.log('Loading Google credentials from environment variable');
+    return JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+  }
+  
+  // Method 2: Try to read from file (for local development)
+  console.log('Loading Google credentials from file:', CREDENTIALS_PATH);
+  const credentialsRaw = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
+  return JSON.parse(credentialsRaw);
+}
+
 // Initialize Google Sheets API
 async function initGoogleSheets() {
   if (sheets) return sheets;
 
   try {
-    console.log('Loading Google credentials from:', CREDENTIALS_PATH);
-    const credentialsRaw = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
-    const credentials = JSON.parse(credentialsRaw);
+    const credentials = getCredentials();
     
     auth = new google.auth.GoogleAuth({
       credentials,
