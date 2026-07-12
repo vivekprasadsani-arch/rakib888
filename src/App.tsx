@@ -97,6 +97,8 @@ export default function App() {
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
   const [customTokenValue, setCustomTokenValue] = useState('');
   const [adminMessage, setAdminMessage] = useState('');
+  const [adminMessageType, setAdminMessageType] = useState<'success' | 'error'>('success');
+  const [isCreatingToken, setIsCreatingToken] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
   const [copiedOtp, setCopiedOtp] = useState<string | null>(null);
@@ -327,10 +329,11 @@ export default function App() {
     }
   };
 
-  // Generate standard token
+  // Generate standard token (with instant optimistic update)
   const handleCreateToken = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminMessage('');
+    setIsCreatingToken(true);
 
     try {
       let finalValidityDays: number | string = 30;
@@ -364,18 +367,33 @@ export default function App() {
         throw new Error(data.error || 'Token creation failed');
       }
 
+      // Instant optimistic update - add token immediately to local state
+      setAdminTokens(prev => [...prev, data.token]);
       setAdminMessage(`Token created: ${data.token.token}`);
+      setAdminMessageType('success');
       setNewLabel('');
       setCustomTokenValue('');
-      fetchAdminTokens();
     } catch (err: any) {
-      setAdminMessage(`Error: ${err.message}`);
+      setAdminMessage(err.message);
+      setAdminMessageType('error');
+    } finally {
+      setIsCreatingToken(false);
     }
   };
 
-  // Edit token (Reset device, Disable, Enable)
+  // Edit token (Reset device, Disable, Enable) - with instant optimistic update
   const handleTokenAction = async (tokenVal: string, action: string) => {
     setAdminMessage('');
+    // Instant optimistic update - update local state immediately
+    if (action === 'disable' || action === 'enable') {
+      setAdminTokens(prev => prev.map(t => 
+        t.token === tokenVal ? { ...t, status: action === 'disable' ? 'disabled' : 'active' } : t
+      ));
+    } else if (action === 'reset') {
+      setAdminTokens(prev => prev.map(t => 
+        t.token === tokenVal ? { ...t, deviceFingerprint: null, deviceInfo: null } : t
+      ));
+    }
     try {
       const res = await fetch(`/api/admin/tokens/${tokenVal}`, {
         method: 'PUT',
@@ -392,13 +410,15 @@ export default function App() {
       }
 
       setAdminMessage(`Token ${tokenVal} updated successfully`);
-      fetchAdminTokens();
+      setAdminMessageType('success');
     } catch (err: any) {
-      setAdminMessage(`Error: ${err.message}`);
+      setAdminMessage(err.message);
+      setAdminMessageType('error');
+      fetchAdminTokens(); // Rollback on error
     }
   };
 
-  // Delete Token
+  // Delete Token (with instant optimistic update)
   const handleDeleteToken = (tokenVal: string) => {
     setConfirmModal({
       isOpen: true,
@@ -414,6 +434,8 @@ export default function App() {
   const executeDeleteToken = async (tokenVal: string) => {
     setConfirmModal(prev => ({ ...prev, isOpen: false }));
     setAdminMessage('');
+    // Instant optimistic update - remove from local state immediately
+    setAdminTokens(prev => prev.filter(t => t.token !== tokenVal));
     try {
       const res = await fetch(`/api/admin/tokens/${tokenVal}`, {
         method: 'DELETE',
@@ -428,9 +450,12 @@ export default function App() {
       }
 
       setAdminMessage(`Token deleted successfully`);
-      fetchAdminTokens();
+      setAdminMessageType('success');
     } catch (err: any) {
-      setAdminMessage(`Error: ${err.message}`);
+      // Rollback on error - refetch from server
+      setAdminMessage(err.message);
+      setAdminMessageType('error');
+      fetchAdminTokens();
     }
   };
 
@@ -814,8 +839,15 @@ export default function App() {
             </div>
 
             {adminMessage && (
-              <div className="p-4 rounded-xl border border-cyan-950 bg-cyan-950/20 text-cyan-300 text-xs sm:text-sm font-mono flex items-center justify-between">
-                <span>{adminMessage}</span>
+              <div className={`p-4 rounded-xl border text-xs sm:text-sm font-mono flex items-center justify-between animate-fade-in ${
+                adminMessageType === 'error'
+                  ? 'border-rose-950 bg-rose-950/20 text-rose-300'
+                  : 'border-emerald-950 bg-emerald-950/20 text-emerald-300'
+              }`}>
+                <span className="flex items-center gap-2">
+                  {adminMessageType === 'error' ? <AlertTriangle className="w-4 h-4 text-rose-400" /> : <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                  {adminMessage}
+                </span>
                 <button onClick={() => setAdminMessage('')} className="text-neutral-500 hover:text-white">✕</button>
               </div>
             )}
@@ -904,9 +936,12 @@ export default function App() {
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-bold text-xs hover:from-cyan-500 hover:to-indigo-500 active:scale-95 transition-all duration-150"
+                    disabled={isCreatingToken}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-bold text-xs hover:from-cyan-500 hover:to-indigo-500 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
                   >
-                    Generate Access Key
+                    {isCreatingToken ? (
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Generating...</>
+                    ) : 'Generate Access Key'}
                   </button>
                 </form>
 

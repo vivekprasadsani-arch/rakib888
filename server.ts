@@ -143,7 +143,7 @@ app.post('/api/admin/tokens', async (req, res) => {
   }
 
   if (db.tokens.some((t: any) => t.token === tokenStr) || tokenStr === db.adminToken) {
-    return res.status(400).json({ error: 'Token already exists' });
+    return res.status(409).json({ error: `Duplicate entry: Token "${tokenStr}" already exists. Please use a different name.` });
   }
 
   const now = new Date();
