@@ -248,36 +248,27 @@ export async function saveDb(data: Database): Promise<void> {
   try {
     await initGoogleSheets();
 
-    // Clear AdminToken sheet first to prevent old tokens from reappearing
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${ADMIN_TOKEN_SHEET}!A:Z`,
-    });
-
-    // Save admin token
+    // Save admin token (write new data first, then clear leftover rows)
+    const adminValues = [
+      ['Key', 'Value'],
+      ['adminToken', data.adminToken],
+    ];
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${ADMIN_TOKEN_SHEET}!A:B`,
       valueInputOption: 'RAW',
-      requestBody: {
-        values: [
-          ['Key', 'Value'],
-          ['adminToken', data.adminToken],
-        ],
-      },
+      requestBody: { values: adminValues },
     });
-
-    // Clear Tokens sheet first to prevent old tokens from reappearing
+    // Clear any leftover rows beyond what we wrote (row 3+)
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${TOKENS_SHEET}!A:Z`,
-    });
+      range: `${ADMIN_TOKEN_SHEET}!A3:Z`,
+    }).catch(() => {}); // Ignore errors here (sheet might be short)
 
     // Save tokens (including header)
     const tokenValues = [
       ['token', 'type', 'deviceFingerprint', 'deviceInfo', 'status', 'createdAt', 'expiresAt'],
     ];
-
     for (const token of data.tokens) {
       tokenValues.push([
         token.token,
@@ -289,15 +280,18 @@ export async function saveDb(data: Database): Promise<void> {
         token.expiresAt || '',
       ]);
     }
-
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${TOKENS_SHEET}!A:G`,
       valueInputOption: 'RAW',
-      requestBody: {
-        values: tokenValues,
-      },
+      requestBody: { values: tokenValues },
     });
+    // Clear any leftover rows beyond what we wrote
+    const clearStartRow = tokenValues.length + 1;
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TOKENS_SHEET}!A${clearStartRow}:Z`,
+    }).catch(() => {}); // Ignore errors here (sheet might be short)
 
     // Update cache with a COPY after successful save
     cachedDb = cloneDb(data);
