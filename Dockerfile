@@ -6,13 +6,13 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies (including dev for tsx)
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build frontend with Vite
 RUN npm run build
 
 # Stage 2: Production stage
@@ -23,16 +23,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install ALL dependencies (tsx is needed at runtime)
+RUN npm ci
 
-# Copy built application from builder stage
+# Copy built frontend from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/server.ts ./
 
-# Copy environment file if exists (will be overridden by Render env vars)
-COPY .env* ./
+# Copy source files needed at runtime
+COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/src ./src
 
 # Expose port
 EXPOSE 3000

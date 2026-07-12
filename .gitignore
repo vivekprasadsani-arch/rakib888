@@ -9,6 +9,10 @@ coverage/
 .env.*.local
 !.env.example
 
+# Sensitive files - DO NOT COMMIT
+oasis-numbers-465216-a5c259d21ebf.json
+db.json
+
 # Docker
 docker-compose*.yml
 
