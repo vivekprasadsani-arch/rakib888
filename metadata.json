@@ -1,0 +1,6 @@
+{
+  "name": "Secure Telephony Portal",
+  "description": "A secured multi-user web dashboard featuring device-locked access key logs, country geozoned phone signal leases, and real-time incoming signal logs converted to Bangladesh local standard time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
