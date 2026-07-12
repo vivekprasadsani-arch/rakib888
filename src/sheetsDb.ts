@@ -231,7 +231,7 @@ export async function getDb(): Promise<Database> {
     // Return cached version if available, otherwise defaults
     if (cachedDb) {
       console.warn('Returning cached database due to Sheets read error');
-      return cachedDb;
+      return cloneDb(cachedDb);
     }
     return {
       adminToken: 'adminRakib017@#$',
