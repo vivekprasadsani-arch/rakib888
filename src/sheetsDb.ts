@@ -153,12 +153,21 @@ async function ensureSheetsExist() {
   }
 }
 
+// Deep clone helper to prevent cache mutation
+function cloneDb(db: Database): Database {
+  return {
+    adminToken: db.adminToken,
+    tokens: db.tokens.map(t => ({ ...t }))
+  };
+}
+
 // Get database from Google Sheets (with caching)
 export async function getDb(): Promise<Database> {
-  // Return cached version if still valid
   const now = Date.now();
+  
+  // Return a COPY of cached version if still valid (prevents cache mutation)
   if (cachedDb && (now - lastSyncTime) < CACHE_TTL_MS) {
-    return cachedDb;
+    return cloneDb(cachedDb);
   }
 
   try {
@@ -212,8 +221,8 @@ export async function getDb(): Promise<Database> {
 
     const db: Database = { adminToken, tokens };
     
-    // Update cache
-    cachedDb = db;
+    // Update cache with a copy
+    cachedDb = cloneDb(db);
     lastSyncTime = now;
     
     return db;
@@ -278,8 +287,8 @@ export async function saveDb(data: Database): Promise<void> {
       },
     });
 
-    // Update cache after successful save
-    cachedDb = data;
+    // Update cache with a COPY after successful save
+    cachedDb = cloneDb(data);
     lastSyncTime = Date.now();
     
     console.log('Database saved to Google Sheets successfully');
